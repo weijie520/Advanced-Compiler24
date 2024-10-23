@@ -1,0 +1,5 @@
+llvm_build/*
+llvm-project-17.0.2.src/*
+*.so
+*.ll
+*.o
