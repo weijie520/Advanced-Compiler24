@@ -1,0 +1,20 @@
+{
+  "FlowDependence": [],
+  "AntiDependence": [
+    {
+      "array": "A",
+      "src_stmt": 2,
+      "src_idx": 10,
+      "dst_stmt": 1,
+      "dst_idx": 17
+    },
+    {
+      "array": "A",
+      "src_stmt": 2,
+      "src_idx": 11,
+      "dst_stmt": 1,
+      "dst_idx": 19
+    }
+  ],
+  "OutputDependence": []
+}
