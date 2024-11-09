@@ -9,7 +9,7 @@ OPT=`$(LLVM_CONFIG) --bindir`/opt
 SOURCE_FILE ?= test1.c
 IR_FILE = $(SOURCE_FILE:.c=.ll)
 
-.PHONY: all test run clean 
+.PHONY: all test run clean
 all: hw1.so test
 
 test: $(IR_FILE)
@@ -23,6 +23,9 @@ $(IR_FILE): $(SOURCE_FILE)
 
 run: $(IR_FILE) hw1.so
 	$(OPT) -disable-output -load-pass-plugin=./hw1.so -passes=hw1 $<
+
+check:
+	python3 hw1_checker.py answer1.json test1.json
 
 clean:
 	rm -f *.o *.ll *.so
