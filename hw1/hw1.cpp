@@ -1,6 +1,8 @@
 #include "llvm/IR/PassManager.h"
 #include "llvm/Passes/PassBuilder.h"
 #include "llvm/Passes/PassPlugin.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/FileSystem.h"
 #include "fstream"
 
 using namespace llvm;
@@ -144,9 +146,9 @@ namespace
   {
     // errs() << F.getParent()->getSourceFileName() << '\n';
     std::string filename = F.getParent()->getSourceFileName();
-    filename.replace(filename.find("."), 4, ".json");
+    filename.replace(filename.rfind("."), 2, ".json");
 
-    std::vector<struct Stmt *> stmts;
+    llvm::SmallVector<struct Stmt *, 4> stmts;
     stmts.push_back(new struct Stmt());
     struct array *arr = new struct array();
     arr->c = 1;
@@ -297,7 +299,7 @@ namespace
     {
       for (int j = 0; j < statment_id; j++)
       {
-        if (stmts[i]->lhs != NULL && stmts[j]->rhs != NULL)
+        if (stmts[i]->rhs != NULL && stmts[j]->lhs != NULL)
         {
           if (stmts[i]->rhs->name == stmts[j]->lhs->name)
           {
@@ -324,7 +326,7 @@ namespace
                 {
                   if (flag)
                     result += ",";
-                  result += "\n   {\n    \"array\": \"" + stmts[i]->lhs->name + "\",\n";
+                  result += "\n   {\n    \"array\": \"" + stmts[i]->rhs->name + "\",\n";
                   result += "    \"src_stmt\": " + std::to_string(i + 1) + ",\n";
                   result += "    \"src_idx\": " + std::to_string(x) + ",\n";
                   result += "    \"dst_stmt\": " + std::to_string(j + 1) + ",\n";
@@ -390,8 +392,8 @@ namespace
       result += "\n ";
     result += "]\n}";
     // errs() << result << '\n';
-
-    std::ofstream file(filename);
+    std::error_code ec;
+    raw_fd_ostream file(filename, ec, sys::fs::FileAccess::FA_Write);
     file << result;
     file.close();
 
