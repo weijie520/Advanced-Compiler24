@@ -6,7 +6,7 @@
                 "llvm_build/include/**"
             ],
             "defines": [],
-            "compilerPath": "/usr/local/bin/clang",
+            "compilerPath": "llvm_build/bin/clang",
             "cStandard": "c17",
             "cppStandard": "c++17",
             "intelliSenseMode": "linux-clang-x64"
