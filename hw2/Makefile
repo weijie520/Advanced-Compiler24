@@ -24,4 +24,4 @@ run: $(IR_FILE) hw2.so
 	$(OPT) -disable-output -load-pass-plugin=./hw2.so -passes=hw2 $<
 
 clean:
-	rm -f *.o *.ll *.so
+	rm -f *.o *.ll *.so *.json
