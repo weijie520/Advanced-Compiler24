@@ -8,6 +8,7 @@ OPT=`$(LLVM_CONFIG) --bindir`/opt
 
 SOURCE_FILE ?= test1.c
 IR_FILE = $(SOURCE_FILE:.c=.ll)
+JSON_FILE = $(SOURCE_FILE:.c=.json)
 
 .PHONY: all test run clean
 all: hw1.so test
@@ -28,4 +29,4 @@ check:
 	python3 hw1_checker.py answer1.json test1.json
 
 clean:
-	rm -f *.o *.ll *.so
+	rm -f *.o *.ll *.so $(JSON_FILE)
