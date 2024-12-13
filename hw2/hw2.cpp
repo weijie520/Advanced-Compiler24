@@ -65,8 +65,8 @@ namespace
     stmts.push_back(new struct Stmt());
     int statment_id = 0;
 
-    std::map<std::string, int> TDEF;              // global TDEF
-    std::map<std::string, std::string> TEQUIV_IN; // TEQUIV_IN
+    std::unordered_map<std::string, int> TDEF;              // global TDEF
+    std::unordered_map<std::string, std::string> TEQUIV_IN; // TEQUIV_IN
     std::vector<std::string> varNames;
 
     for (BasicBlock &BB : F)
@@ -109,23 +109,26 @@ namespace
           }
 
           // TREF run through TEQUIV_IN
+          std::set<std::string> TREF_Derived; // Inorder to avoid the multiple alias of the same variable
           for (auto &name : stmts[statment_id]->TREF)
           {
-            // if(TEQUIV_IN.find(name) != TEQUIV_IN.end()){
-            //   stmts[statment_id]->TREF.insert(TEQUIV_IN[name]);
-            // }
-            for (auto &eq : TEQUIV_IN)
+            if (TEQUIV_IN.find(name) != TEQUIV_IN.end())
             {
-              if (eq.second == name)
-              {
-                stmts[statment_id]->TREF.insert(eq.first);
-              }
-              else if (eq.first == name)
-              {
-                stmts[statment_id]->TREF.insert(eq.second);
-              }
+              TREF_Derived.insert(TEQUIV_IN[name]);
             }
+            // for (auto &eq : TEQUIV_IN)
+            // {
+            //   if (eq.second == name)
+            //   {
+            //     stmts[statment_id]->TREF.insert(eq.first);
+            //   }
+            //   else if (eq.first == name)
+            //   {
+            //     stmts[statment_id]->TREF.insert(eq.second);
+            //   }
+            // }
           }
+          stmts[statment_id]->TREF.insert(TREF_Derived.begin(), TREF_Derived.end());
 
           // Add LHS variable expression tree (no subtree) into TGEN
           stmts[statment_id]->TGEN.insert(varNames.back());
@@ -133,21 +136,26 @@ namespace
           // (skip) If the RHS may modify the variable value, add the variable to TGEN. E.g., t = *p++; *p++ in RHS
 
           // Searching EQUIV_IN to find the alias of the LHS variable and add it to TGEN
+          std::set<std::string> TGEN_Derived; // Inorder to avoid the multiple alias of the same variable
           for (auto &name : stmts[statment_id]->TGEN)
           {
-            if (TEQUIV_IN.find(name) != TEQUIV_IN.end())
-            {
-              stmts[statment_id]->TGEN.insert(TEQUIV_IN[name]);
-            }
-            // for(auto &eq: TEQUIV_IN){
-            //   if(eq.second == name){
-            //     stmts[statment_id]->TGEN.insert(eq.first);
-            //   }
-            //   else if(eq.first == name){
-            //     stmts[statment_id]->TGEN.insert(eq.second);
-            //   }
+            // if (TEQUIV_IN.find(name) != TEQUIV_IN.end())
+            // {
+            //   TGEN_Derived.insert(TEQUIV_IN[name]);
             // }
+            for (auto &eq : TEQUIV_IN)
+            {
+              if (eq.second == name)
+              {
+                TGEN_Derived.insert(eq.first);
+              }
+              else if (eq.first == name)
+              {
+                TGEN_Derived.insert(eq.second);
+              }
+            }
           }
+          stmts[statment_id]->TGEN.insert(TGEN_Derived.begin(), TGEN_Derived.end());
 
           // Dependency analysis
           // FLOW_DEP = TREF(Si) ∩ TDEF(Si)
@@ -166,12 +174,6 @@ namespace
             {
               stmts[statment_id]->OUT_DEP.push_back({name, TDEF[name], statment_id});
             }
-          }
-
-          // New definition
-          for (auto &name : stmts[statment_id]->TGEN)
-          {
-            TDEF[name] = statment_id;
           }
 
           // TKILL
@@ -193,6 +195,12 @@ namespace
             }
           }
 
+          // New definition
+          for (auto &name : stmts[statment_id]->TGEN)
+          {
+            TDEF[name] = statment_id;
+          }
+
           stmts[statment_id]->TDEF.insert(TDEF.begin(), TDEF.end());
 
           // EQUIV_OUT = (EQUIV_IN - EQUIV_KILL) U EQUIV_GEN
@@ -204,7 +212,7 @@ namespace
             for (auto it = TEQUIV_IN.begin(); it != TEQUIV_IN.end(); /* no increment here */)
             {
               auto &alias = *it;
-              if (isSubtree(name, alias.first) > 0)
+              if (isSubtree(name, alias.first) > 0 || isSubtree(name, alias.second) > 0)
               {
                 it = TEQUIV_IN.erase(it);
               }
@@ -237,7 +245,7 @@ namespace
               if (name == name2)
                 continue;
               int pos = isSubtree(name.first, name2.first);
-              if (pos != -1)
+              if (pos > 0)
               {
                 TEQUIV_IN[name2.first.substr(0, pos) + name.second] = name2.second;
               }
@@ -251,10 +259,11 @@ namespace
               {
                 TEQUIV_IN[name2.first.substr(0, pos) + name.first] = name2.second;
               }
-              // pos = isSubtree(name.second, name2.second);
-              // if(pos != -1){
-              //   TEQUIV_IN[name2.first] = name2.second.substr(0, pos) + name.first;
-              // }
+              pos = isSubtree(name.second, name2.second);
+              if (pos > 0)
+              {
+                TEQUIV_IN[name2.first] = name2.second.substr(0, pos) + name.first;
+              }
             }
             // if(TEQUIV_IN.find(("*" + name.second)) != TEQUIV_IN.end()){
             //   TEQUIV_IN["*" + name.first] = TEQUIV_IN[("*" + name.second)];
@@ -340,40 +349,71 @@ namespace
     raw_fd_ostream file(filename, ec, sys::fs::FileAccess::FA_Write);
     file << llvm::json::Value(std::move(output));
     file.close();
-    //   int i = 0;
+    // int i = 0;
     // for (auto &stmt : stmts)
     // {
-    //   errs() << "S" << (i++)+1 << '\n'<< "====================\n";
-    //   errs() << "TREF: ";
-    //   for(auto &name : stmt->TREF){
-    //     errs() << name << ' ';
+    //   errs() << "S" << (i++) + 1 << ":--------------------\n";
+    //   errs() << "TREF: {";
+    //   for (auto &name : stmt->TREF)
+    //   {
+    //     errs() << name;
+    //     if (name != *stmt->TREF.rbegin() && stmt->TREF.size() > 1)
+    //     {
+    //       errs() << ", ";
+    //     }
     //   }
-    //   errs() << '\n';
-    //   errs() << "TGEN: ";
-    //   for(auto &name : stmt->TGEN){
-    //     errs() << name << ' ';
+    //   errs() << "}\n";
+    //   errs() << "TGEN: {";
+    //   for (auto &name : stmt->TGEN)
+    //   {
+    //     errs() << name;
+    //     if (name != *stmt->TGEN.rbegin() && stmt->TGEN.size() > 1)
+    //     {
+    //       errs() << ", ";
+    //     }
     //   }
-    //   errs() << '\n';
-    //   errs() << "FLOW_DEP: ";
-    //   for(auto &dep : stmt->FLOW_DEP){
-    //     errs() << '(' << dep.var << ", S" << dep.src+1 << ", S" << dep.dst+1 << ") ";
+    //   errs() << "}\n";
+    //   errs() << "DEP: {";
+    //   int first = 1;
+    //   for (auto &dep : stmt->FLOW_DEP)
+    //   {
+    //     if (first)
+    //     {
+    //       first = 0;
+    //       errs() << "\n";
+    //     }
+    //     errs() << "   " << dep.var << ": S" << dep.src + 1 << "--->S" << dep.dst + 1 << "\n";
     //   }
-    //   errs() << '\n';
-    //   errs() << "OUT_DEP: ";
-    //   for(auto &dep : stmt->OUT_DEP){
-    //     errs() << '(' << dep.var << ", S" << dep.src+1 << ", S" << dep.dst+1 << ") ";
+    //   for (auto &dep : stmt->OUT_DEP)
+    //   {
+    //     if (first)
+    //     {
+    //       first = 0;
+    //       errs() << "\n";
+    //     }
+    //     errs() << "   " << dep.var << ": S" << dep.src + 1 << "-O->S" << dep.dst + 1 << "\n";
     //   }
-    //   errs() << '\n';
-    //   errs() << "TDEF: ";
-    //   for(auto &name : stmt->TDEF){
-    //     errs() << '(' << name.first << ", S" << name.second+1 << ") ";
+    //   errs() << "}\n";
+    //   errs() << "TDEF: {";
+    //   for (auto &name : stmt->TDEF)
+    //   {
+    //     errs() << '(' << name.first << ", S" << name.second + 1 << ")";
+    //     if (name != *stmt->TDEF.rbegin() && stmt->TDEF.size() > 1)
+    //     {
+    //       errs() << ", ";
+    //     }
     //   }
-    //   errs() << '\n';
-    //   errs() << "TEQUIV: ";
-    //   for(auto &name : stmt->TEQUIV){
-    //     errs() << '(' << name.first << ", " << name.second << ") ";
+    //   errs() << "}\n";
+    //   errs() << "TEQUIV: {";
+    //   for (auto &name : stmt->TEQUIV)
+    //   {
+    //     errs() << '(' << name.first << ", " << name.second << ")";
+    //     if (name != *stmt->TEQUIV.rbegin() && stmt->TEQUIV.size() > 1)
+    //     {
+    //       errs() << ", ";
+    //     }
     //   }
-    //   errs() << "\n====================\n";
+    //   errs() << "}\n\n";
     // }
 
     return PreservedAnalyses::all();
