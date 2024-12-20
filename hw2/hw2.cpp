@@ -31,7 +31,10 @@ namespace
     int dst;
   };
 
-  int isSubtree(std::string s1, std::string s2)
+  // check if s1 is a subtree of s2
+  // if yes, return the position of the subtree
+  // if no, return -1
+  static int isSubtree(std::string s1, std::string s2)
   {
     if (s1.size() > s2.size())
       return -1;
@@ -78,7 +81,6 @@ namespace
         {
           Value *V = LI->getPointerOperand();
 
-          // LI->get;
           if (V->hasName())
           {
             varNames.push_back(V->getName().str());
@@ -102,31 +104,24 @@ namespace
             varNames.push_back(name);
           }
 
-          // Add RHS variable and expression tree, proper subtree of LHS into TREF
-          for (std::vector<std::string>::iterator it = varNames.begin(); it != varNames.end() - 1; ++it)
-          {
-            stmts[statment_id]->TREF.insert(*it);
-          }
+          // Add RHS variable and expression tree and the proper subtree of LHS into TREF
+          stmts[statment_id]->TREF.insert(varNames.begin(), varNames.end() - 1);
 
           // TREF run through TEQUIV_IN
           std::set<std::string> TREF_Derived; // Inorder to avoid the multiple alias of the same variable
           for (auto &name : stmts[statment_id]->TREF)
           {
-            if (TEQUIV_IN.find(name) != TEQUIV_IN.end())
+            for (auto &eq : TEQUIV_IN)
             {
-              TREF_Derived.insert(TEQUIV_IN[name]);
+              if (eq.second == name)
+              {
+                TREF_Derived.insert(eq.first);
+              }
+              else if (eq.first == name)
+              {
+                TREF_Derived.insert(eq.second);
+              }
             }
-            // for (auto &eq : TEQUIV_IN)
-            // {
-            //   if (eq.second == name)
-            //   {
-            //     stmts[statment_id]->TREF.insert(eq.first);
-            //   }
-            //   else if (eq.first == name)
-            //   {
-            //     stmts[statment_id]->TREF.insert(eq.second);
-            //   }
-            // }
           }
           stmts[statment_id]->TREF.insert(TREF_Derived.begin(), TREF_Derived.end());
 
@@ -139,10 +134,6 @@ namespace
           std::set<std::string> TGEN_Derived; // Inorder to avoid the multiple alias of the same variable
           for (auto &name : stmts[statment_id]->TGEN)
           {
-            // if (TEQUIV_IN.find(name) != TEQUIV_IN.end())
-            // {
-            //   TGEN_Derived.insert(TEQUIV_IN[name]);
-            // }
             for (auto &eq : TEQUIV_IN)
             {
               if (eq.second == name)
@@ -249,11 +240,6 @@ namespace
               {
                 TEQUIV_IN[name2.first.substr(0, pos) + name.second] = name2.second;
               }
-              pos = isSubtree(name.first, name2.second);
-              if (pos != -1)
-              {
-                TEQUIV_IN[name2.first] = name2.second.substr(0, pos) + name.second;
-              }
               pos = isSubtree(name.second, name2.first);
               if (pos != -1)
               {
@@ -265,9 +251,6 @@ namespace
                 TEQUIV_IN[name2.first] = name2.second.substr(0, pos) + name.first;
               }
             }
-            // if(TEQUIV_IN.find(("*" + name.second)) != TEQUIV_IN.end()){
-            //   TEQUIV_IN["*" + name.first] = TEQUIV_IN[("*" + name.second)];
-            // }
           }
 
           stmts[statment_id]->TEQUIV.insert(TEQUIV_IN.begin(), TEQUIV_IN.end());
