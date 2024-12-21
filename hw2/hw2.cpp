@@ -289,8 +289,8 @@ namespace
       {
         llvm::json::Object dep_obj;
         dep_obj["var"] = dep.var;
-        dep_obj["src"] = dep.src + 1;
-        dep_obj["dst"] = dep.dst + 1;
+        dep_obj["src_stmt"] = dep.src + 1;
+        dep_obj["dst_stmt"] = dep.dst + 1;
         dep_obj["type"] = "flow";
         DEP.push_back(std::move(dep_obj));
       }
@@ -299,8 +299,8 @@ namespace
       {
         llvm::json::Object dep_obj;
         dep_obj["var"] = dep.var;
-        dep_obj["src"] = dep.src + 1;
-        dep_obj["dst"] = dep.dst + 1;
+        dep_obj["src_stmt"] = dep.src + 1;
+        dep_obj["dst_stmt"] = dep.dst + 1;
         dep_obj["type"] = "output";
         DEP.push_back(std::move(dep_obj));
       }
